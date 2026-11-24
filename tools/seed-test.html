@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Test harness: loads FAKE sample data (sample-db.json) and shows the app in a 390px iPhone-sized frame.
+     Copy this file and sample-db.json into docs/ temporarily, then open /seed-test.html?tab=month -->
+<body style="margin:0;background:#000">
+<script>
+fetch('sample-db.json').then((r) => r.text()).then((t) => {
+  localStorage.setItem('budget.v1', t);
+  const p = new URLSearchParams(location.search);
+  const f = document.createElement('iframe'); f.style.cssText = 'width:390px;height:844px;border:0;display:block';
+  f.src = 'index.html'; document.body.append(f);
+  f.onload = () => setTimeout(() => {
+    const d = f.contentDocument; const tab = p.get('tab');
+    if (tab) d.querySelector(`[data-tab=${tab}]`).click();
+    if (p.get('scroll')) f.contentWindow.scrollTo(0, +p.get('scroll'));
+  }, 600);
+});
+</script>
+</body>
