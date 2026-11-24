@@ -22,6 +22,10 @@ for (let k = 5; k >= 0; k--) {
   add(day(14), 'CARTE 14/01 SNCF', -r(20, 60), 'Train', 'Transports', 'Sncf');
   add(day(16), 'CARTE 16/01 MYPROTEIN', -r(30, 55), '', '', '');
   add(day(18), 'CARTE 18/01 PHARMACIE CENTRALE', -r(5, 25), 'Pharmacie', 'Santé', 'Pharmacie');
+  // transfers between private individuals, both directions (fake names)
+  add(day(10), 'VIR SEPA M JEAN EXEMPLE', -r(20, 60), 'Virements émis', 'Mouvements internes');
+  add(day(15), 'VIR INST MME CLAIRE TEST REMB RESTO', r(10, 40), 'Virements reçus', 'Revenus');
+  add(day(22), 'VIREMENT LYDIA', -r(5, 30), '', '', '');
   if (k % 2) add(day(20), 'CARTE 20/01 STEAM GAMES', -r(10, 40), 'Jeux vidéo', 'Loisirs et sorties', 'Steam');
 }
 const fmt = (n) => n.toFixed(2).replace('.', ',');

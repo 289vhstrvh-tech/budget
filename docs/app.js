@@ -53,8 +53,32 @@ const KEYWORD_RULES = [
   ['Impôts & taxes', /dgfip|impot|finances publiques|amende|urssaf/],
   ['Banque', /cotisation|frais|commission|agios|boursobank|boursorama/],
 ];
-const ESSENTIAL = /logement|sante|impot|banque|assurance|loyer/; // not suggested for cuts
-const catOf = (t) => db.rules[t.merchant] || t.catUser || t.catBank || t.catAuto || 'Autres';
+const ESSENTIAL = /logement|sante|impot|banque|assurance|loyer|particuliers/; // not suggested for cuts or listed as subscriptions
+
+// Transfers to / from private individuals (friends, family, Lydia, Wero…), in both directions.
+// The bank file usually files them under a generic "virements" category, so they are detected from the label.
+const P2P = 'Virements entre particuliers';
+const P2P_APPS = /\b(lydia|sumeria|paylib|wero|pumpkin)\b/;
+const NOT_PERSON = /\b(salaire|paie|prime|sas|sasu|sarl|sa|eurl|sci|scp|snc|ste|societe|ets|cie|group|groupe|caf|cpam|ameli|urssaf|dgfip|tresor|finances|impots?|travail|emploi|assurances?|mutuelle|banque|bank|boursobank|boursorama|livret|ldds|lep|pea|epargne|compte|loyer|edf|engie|association|asso|mairie|universite|ecole|notaire|cabinet|agence|syndic)\b/;
+const PERSON_PREFIX = /^(?:(?:de|vers|a|pour|from|to|recu|emis)\s+)*(?:(?:m|mr|mme|mlle|monsieur|madame|mrs|ms)\.?\s+)?/;
+const p2pCache = new Map();
+function isP2P(t) {
+  if (t.biz) return false; // the bank recognised a business
+  if (p2pCache.has(t.id)) return p2pCache.get(t.id);
+  const n = norm(t.label).replace(/[.,/]/g, ' ').replace(/\s+/g, ' ');
+  let r = false;
+  if (P2P_APPS.test(n)) r = true;
+  else if (!KEYWORD_RULES[0][1].test(n) && !NOT_PERSON.test(n)
+    && (!t.catBank || /virement|mouvement|autre|divers|revenu|non categ/.test(norm(t.catBank)))) {
+    const m = n.match(/^vir(?:ement)?s?(?:\s+(?:sepa|inst|instantane|permanent|recu|emis))*\s+(.+)$/);
+    // a person looks like "jean dupont" / "m jean dupont": at least two words of letters, optionally followed by a note
+    const words = m ? m[1].replace(PERSON_PREFIX, '').split(' ') : [];
+    r = words.length >= 2 && words.slice(0, 2).every((w) => /^[a-z][a-z'-]+$/.test(w));
+  }
+  p2pCache.set(t.id, r);
+  return r;
+}
+const catOf = (t) => db.rules[t.merchant] || t.catUser || (isP2P(t) ? P2P : t.catBank || t.catAuto) || 'Autres';
 const isExcluded = (cat) => db.excluded.some((e) => norm(e) === norm(cat));
 
 function cleanMerchant(label) {
@@ -133,7 +157,7 @@ function importCSV(text) {
     if (seen.has(id)) { dup++; continue; }
     const supplier = col.supplier >= 0 ? (r[col.supplier] || '').trim() : '';
     const catBank = ((col.catParent >= 0 && r[col.catParent]) || (col.cat >= 0 && r[col.cat]) || '').trim();
-    const t = { id, date, label, amount: Math.round(amount * 100) / 100, account, merchant: supplier ? cap(supplier.toLowerCase()) : cleanMerchant(label),
+    const t = { id, date, label, amount: Math.round(amount * 100) / 100, account, merchant: supplier ? cap(supplier.toLowerCase()) : cleanMerchant(label), ...(supplier && { biz: true }),
       catBank: catBank && !/^(non categorise|a categoriser|autres?)$/i.test(norm(catBank)) ? catBank : null, catAuto: autoCat(label, amount) };
     db.tx.push(t); seen.set(id, true); added++;
   }
@@ -396,7 +420,7 @@ function openSheet(html) {
 function closeSheet() { $('#sheet-root').innerHTML = ''; document.body.style.overflow = ''; }
 
 function opSheet(t) {
-  const cats = [...new Set([...db.tx.map(catOf), ...KEYWORD_RULES.map((r) => r[0]), 'Autres'])].sort((a, b) => a.localeCompare(b, 'fr'));
+  const cats = [...new Set([...db.tx.map(catOf), ...KEYWORD_RULES.map((r) => r[0]), P2P, 'Autres'])].sort((a, b) => a.localeCompare(b, 'fr'));
   const sheet = openSheet(`
     <h2>${esc(t.merchant)}</h2>
     <dl class="kv num"><dt>Montant</dt><dd class="${t.amount > 0 ? 'pos' : ''}">${eur2(t.amount)}</dd><dt>Date</dt><dd>${esc(dayLabel(t.date))}</dd>${t.account ? `<dt>Compte</dt><dd>${esc(t.account)}</dd>` : ''}</dl>

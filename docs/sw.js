@@ -1,5 +1,5 @@
 // Offline cache for the app shell (bank data never leaves the device and is never fetched).
-const CACHE = 'budget-v1';
+const CACHE = 'budget-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
